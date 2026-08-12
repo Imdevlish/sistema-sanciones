@@ -16,6 +16,7 @@
             --text-muted: #949ba4;
             --border: #3f4147;
             --danger: #da373c;
+            --danger-hover: #a1282b;
             --warning: #f0b232;
             --success: #23a55a;
             --success-hover: #1d8a4b;
@@ -31,7 +32,7 @@
 
         .hidden { display: none !important; }
         .auth-container { max-width: 400px; margin: 80px auto; text-align: center; }
-        .container { max-width: 1250px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+        .container { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
         .card { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
         h2 { margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
         
@@ -47,6 +48,8 @@
         button.btn-sec { background: transparent; border: 1px solid var(--border); }
         .btn-logout { background: var(--danger); width: auto; margin-top: 0; }
         .btn-nick { background: var(--accent); width: auto; padding: 8px 12px; margin-top: 0; font-size: 0.85em; }
+        .btn-delete { background: var(--danger); width: auto; padding: 4px 8px; margin: 0; font-size: 0.8em; }
+        .btn-delete:hover { background: var(--danger-hover); }
         
         .header-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
         .search-box { width: 250px; }
@@ -175,6 +178,7 @@
                             <th>Estado</th>
                             <th>Mod</th>
                             <th>Link</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
@@ -185,7 +189,7 @@
 
 <script>
     const SUPABASE_URL = "https://jaemlgjyorsoojwmpoxm.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_tzjGJZ5c_jiGTkzy0IUf0w_umCH8Uaj";
+    const SUPABASE_KEY = "sb_publishable_tzjG375c_jiGTkzy0TUF0w_umCH8UAj";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let isLogin = true;
@@ -260,7 +264,7 @@
             alert("Error al actualizar Nick: " + error.message);
         } else {
             currentDisplayName = newNick;
-            alert("¡Nick actualizado correctamente! Las nuevas sanciones saldrán a tu nombre.");
+            alert("¡Nick actualizado correctamente!");
         }
     }
 
@@ -324,8 +328,24 @@
                     <td>${statusBadge}</td>
                     <td>${r.moderador}</td>
                     <td>${evidenceLink}</td>
+                    <td>
+                        <button class="btn-delete" onclick="deleteRecord(${r.id}, '${r.codigo}')">🗑️</button>
+                    </td>
                 </tr>`;
         });
+    }
+
+    async function deleteRecord(id, codigo) {
+        if (!confirm(`¿Estás seguro de eliminar el registro ${codigo}?`)) return;
+
+        const { error } = await db.from('sanciones').delete().eq('id', id);
+
+        if (error) {
+            alert("Error al eliminar: " + error.message);
+        } else {
+            alert(`Registro ${codigo} eliminado correctamente.`);
+            loadRecords();
+        }
     }
 
     function filterRecords() {
@@ -342,12 +362,18 @@
     function exportToCSV() {
         if (allRecords.length === 0) return alert('No hay datos para exportar.');
         
-        let csv = 'Codigo,Fecha,Usuario,Tipo,Plataforma,Motivo,Sancion,Evidencia,Moderador,Expiracion\n';
+        // Incluir instruccion sep=; para forzar a Excel a separar en columnas
+        let csv = 'sep=;\n';
+        csv += 'Codigo;Fecha;Usuario;Tipo;Plataforma;Motivo;Sancion;Evidencia;Moderador;Expiracion\n';
+        
         allRecords.forEach(r => {
-            csv += `"${r.codigo}","${new Date(r.fecha).toLocaleString()}","${r.usuario}","${r.tipo}","${r.plataforma}","${r.motivo}","${r.duracion}","${r.evidencia || ''}","${r.moderador}","${r.expira_at || ''}"\n`;
+            const fechaFormateada = new Date(r.fecha).toLocaleString('es-ES');
+            const expiraFormateada = r.expira_at ? new Date(r.expira_at).toLocaleString('es-ES') : 'N/A';
+            
+            csv += `"${r.codigo}";"${fechaFormateada}";"${r.usuario}";"${r.tipo}";"${r.plataforma}";"${r.motivo}";"${r.duracion}";"${r.evidencia || ''}";"${r.moderador}";"${expiraFormateada}"\n`;
         });
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.setAttribute("download", `Historial_Sanciones_${new Date().toISOString().slice(0,10)}.csv`);
