@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión de Sanciones</title>
+    <title>Sistema de Moderación</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-dark: #1e1f22;
             --bg-card: #2b2d31;
             --bg-input: #313338;
             --accent: #5865f2;
-            --accent-hover: #4752c4;
             --text-main: #f2f3f5;
             --text-muted: #949ba4;
             --border: #3f4147;
@@ -18,344 +18,226 @@
             --warning: #f0b232;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 360px 1fr;
-            gap: 20px;
-        }
-
-        .card {
-            background-color: var(--bg-card);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-
-        h2, h3 {
-            margin-top: 0;
-            color: #fff;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-muted);
-            font-size: 0.9em;
-            font-weight: 600;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-main);
-            box-sizing: border-box;
-            font-size: 0.95em;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: 1px solid var(--accent);
-            border-color: var(--accent);
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .btn-export {
-            background-color: #23a55a;
-            width: auto;
-            float: right;
-            margin-bottom: 15px;
-        }
-
-        .btn-export:hover {
-            background-color: #1d8a4b;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.9em;
-        }
-
-        th {
-            background-color: #2b2d31;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-size: 0.75em;
-            letter-spacing: 0.5px;
-        }
-
-        tr:hover {
-            background-color: rgba(255, 255, 255, 0.02);
-        }
-
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.8em;
-        }
-
-        .badge-adv { background-color: rgba(240, 178, 50, 0.2); color: var(--warning); }
-        .badge-san { background-color: rgba(218, 55, 60, 0.2); color: var(--danger); }
-
-        .actions-cell {
-            display: flex;
-            gap: 5px;
-        }
-
-        .btn-del {
-            background: transparent;
-            color: var(--danger);
-            border: 1px solid var(--danger);
-            padding: 4px 8px;
-            font-size: 0.75em;
-        }
-
-        .btn-del:hover {
-            background: var(--danger);
-            color: white;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; }
+        .hidden { display: none !important; }
+        .auth-container { max-width: 400px; margin: 80px auto; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+        .card { background: var(--bg-card); border-radius: 8px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9em; font-weight: 600; }
+        input, select { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main); box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        button.btn-sec { background: transparent; border: 1px solid var(--border); }
+        .btn-logout { background: var(--danger); width: auto; float: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+        th { background: #2b2d31; color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .badge-adv { background: rgba(240, 178, 50, 0.2); color: var(--warning); }
+        .badge-san { background: rgba(218, 55, 60, 0.2); color: var(--danger); }
+        .notice { text-align: center; padding: 20px; background: #313338; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- FORMULARIO DE REGISTRO -->
-    <div class="card">
-        <h2>🛡️ Mod Control Panel</h2>
-        <form id="sanctionForm">
+    <!-- LOGIN / REGISTRO -->
+    <div id="authScreen" class="card auth-container">
+        <h2 id="authTitle">🔑 Iniciar Sesión</h2>
+        <form id="authForm">
             <div class="form-group">
-                <label>Usuario / Nickname</label>
-                <input type="text" id="username" placeholder="Ej: User123#0000" required>
+                <label>Correo Electrónico</label>
+                <input type="email" id="authEmail" required>
             </div>
-
             <div class="form-group">
-                <label>Tipo de Registro</label>
-                <select id="type" required>
-                    <option value="Advertencia">Advertencia (ADV)</option>
-                    <option value="Sanción">Sanción (SN)</option>
-                </select>
+                <label>Contraseña</label>
+                <input type="password" id="authPassword" required>
             </div>
-
-            <div class="form-group">
-                <label>Plataforma</label>
-                <select id="platform">
-                    <option value="Discord">Discord</option>
-                    <option value="Twitch">Twitch</option>
-                    <option value="Kick">Kick</option>
-                    <option value="YouTube">YouTube</option>
-                    <option value="TikTok">TikTok</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Motivo / Conducta</label>
-                <select id="reason" required>
-                    <option value="Spam / Flood">Spam / Flood</option>
-                    <option value="Caps excesivo">Caps excesivo</option>
-                    <option value="Insultos leves">Insultos leves</option>
-                    <option value="Insultos graves / ataques personales">Insultos graves / ataques personales</option>
-                    <option value="Provocación / Bait">Provocación / Bait</option>
-                    <option value="Toxicidad constante">Toxicidad constante</option>
-                    <option value="Discusiones que alteran el chat">Discusiones que alteran el chat</option>
-                    <option value="Ignorar instrucciones de moderación">Ignorar instrucciones de moderación</option>
-                    <option value="Spoilers intencionales">Spoilers intencionales</option>
-                    <option value="Publicidad no autorizada">Publicidad no autorizada</option>
-                    <option value="Links sospechosos / maliciosos">Links sospechosos / maliciosos</option>
-                    <option value="Discriminación / discurso de odio">Discriminación / discurso de odio</option>
-                    <option value="Acoso dirigido a un usuario">Acoso dirigido a un usuario</option>
-                    <option value="Acoso reiterado">Acoso reiterado</option>
-                    <option value="Amenazas">Amenazas</option>
-                    <option value="Doxxing / publicación de datos">Doxxing / publicación de datos</option>
-                    <option value="Evasión de mute/ban">Evasión de mute/ban</option>
-                    <option value="Cuentas creadas para acosar">Cuentas creadas para acosar</option>
-                    <option value="Contenido sexual inapropiado">Contenido sexual inapropiado</option>
-                    <option value="Contenido ilegal/peligroso">Contenido ilegal/peligroso</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Sanción / Tiempo</label>
-                <select id="duration" required>
-                    <option value="Sin sanción / aviso">Sin sanción / aviso</option>
-                    <option value="Advertencia">Advertencia</option>
-                    <option value="Mute 5–15 min">Mute 5–15 min</option>
-                    <option value="Mute 10–30 min">Mute 10–30 min</option>
-                    <option value="Mute 30–60 min">Mute 30–60 min</option>
-                    <option value="Mute 1–6 h">Mute 1–6 h</option>
-                    <option value="Mute 6–24 h">Mute 6–24 h</option>
-                    <option value="Mute 1–7 días">Mute 1–7 días</option>
-                    <option value="Ban 1–30 días">Ban 1–30 días</option>
-                    <option value="Ban 7–30 días">Ban 7–30 días</option>
-                    <option value="Ban permanente">Ban permanente</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Evidencia (URL)</label>
-                <input type="url" id="evidence" placeholder="https://imgur.com/...">
-            </div>
-
-            <div class="form-group">
-                <label>Moderador</label>
-                <input type="text" id="moderator" placeholder="Tu Nick" required>
-            </div>
-
-            <button type="submit">Registrar Sanción</button>
+            <button type="submit" id="btnAuthSubmit">Ingresar</button>
+            <button type="button" class="btn-sec" onclick="toggleAuthMode()">¿No tienes cuenta? Regístrate</button>
         </form>
     </div>
 
-    <!-- TABLA DE HISTORIAL -->
-    <div class="card">
-        <button class="btn-export" onclick="exportToCSV()">📥 Exportar a Excel (CSV)</button>
-        <h2>📋 Historial General</h2>
-        
-        <table id="recordsTable">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Fecha</th>
-                    <th>Usuario</th>
-                    <th>Tipo</th>
-                    <th>Motivo</th>
-                    <th>Sanción</th>
-                    <th>Mod</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <!-- Se llena dinámicamente -->
-            </tbody>
-        </table>
+    <!-- PENDIENTE DE APROBACIÓN -->
+    <div id="pendingScreen" class="card notice hidden" style="max-width: 500px; margin: 80px auto;">
+        <h2>⏳ Cuenta en Espera de Aprobación</h2>
+        <p>Tu cuenta fue registrada. Un administrador debe otorgarte permisos en Supabase para acceder.</p>
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
     </div>
-</div>
+
+    <!-- PANEL PRINCIPAL -->
+    <div id="mainApp" class="hidden">
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+        <div style="clear: both; margin-bottom: 15px;"></div>
+        <div class="container">
+            <div class="card">
+                <h2>🛡️ Registrar Sanción</h2>
+                <form id="sanctionForm">
+                    <div class="form-group"><label>Usuario / Nickname</label><input type="text" id="username" required></div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select id="type"><option value="Advertencia">Advertencia</option><option value="Sanción">Sanción</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Plataforma</label>
+                        <select id="platform">
+                            <option value="Discord">Discord</option>
+                            <option value="Twitch">Twitch</option>
+                            <option value="Kick">Kick</option>
+                            <option value="YouTube">YouTube</option>
+                            <option value="TikTok">TikTok</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo</label>
+                        <select id="reason">
+                            <option value="Spam / Flood">Spam / Flood</option>
+                            <option value="Caps excesivo">Caps excesivo</option>
+                            <option value="Insultos leves">Insultos leves</option>
+                            <option value="Toxicidad constante">Toxicidad constante</option>
+                            <option value="Publicidad no autorizada">Publicidad no autorizada</option>
+                            <option value="Acoso dirigido">Acoso dirigido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sanción / Tiempo</label>
+                        <select id="duration">
+                            <option value="Advertencia">Advertencia</option>
+                            <option value="Mute 10–30 min">Mute 10–30 min</option>
+                            <option value="Mute 1–24 h">Mute 1–24 h</option>
+                            <option value="Ban 1–30 días">Ban 1–30 días</option>
+                            <option value="Ban permanente">Ban permanente</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Evidencia (URL)</label><input type="url" id="evidence"></div>
+                    <button type="submit">Guardar Registro</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>📋 Historial General (Sincronizado)</h2>
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Motivo</th><th>Sanción</th><th>Mod</th></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
 <script>
-    let records = JSON.parse(localStorage.getItem('mod_records')) || [];
+    const SUPABASE_URL = "https://jaemlgjyorsoojwmpoxm.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_tzjGJZ5c_jiGTkzy0IUf0w_umCH8Uaj";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    function saveAndRender() {
-        localStorage.setItem('mod_records', JSON.stringify(records));
-        renderTable();
+    let isLogin = true;
+    let currentUser = null;
+
+    function toggleAuthMode() {
+        isLogin = !isLogin;
+        document.getElementById('authTitle').innerText = isLogin ? '🔑 Iniciar Sesión' : '📝 Registrarse';
+        document.getElementById('btnAuthSubmit').innerText = isLogin ? 'Ingresar' : 'Crear Cuenta';
     }
 
-    function getNextCode(type) {
-        const prefix = type === 'Advertencia' ? 'ADV' : 'SN';
-        const count = records.filter(r => r.type === type).length + 1;
-        return `${prefix}-${String(count).padStart(3, '0')}`;
-    }
-
-    document.getElementById('sanctionForm').addEventListener('submit', function(e) {
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const type = document.getElementById('type').value;
-        const newRecord = {
-            id: getNextCode(type),
-            date: new Date().toLocaleString(),
-            user: document.getElementById('username').value,
-            type: type,
-            platform: document.getElementById('platform').value,
-            reason: document.getElementById('reason').value,
-            duration: document.getElementById('duration').value,
-            evidence: document.getElementById('evidence').value,
-            mod: document.getElementById('moderator').value
-        };
+        const email = document.getElementById('authEmail').value;
+        const password = document.getElementById('authPassword').value;
 
-        records.push(newRecord);
-        saveAndRender();
-        this.reset();
+        if (isLogin) {
+            const { data, error } = await db.auth.signInWithPassword({ email, password });
+            if (error) alert("Error al ingresar: " + error.message);
+            else checkUserRole();
+        } else {
+            const { data, error } = await db.auth.signUp({ email, password });
+            if (error) alert("Error al registrarse: " + error.message);
+            else {
+                alert("Cuenta creada con éxito. Un admin deberá aprobar tu cuenta.");
+                toggleAuthMode();
+            }
+        }
     });
 
-    function deleteRecord(index) {
-        if(confirm('¿Seguro que deseas eliminar este registro?')) {
-            records.splice(index, 1);
-            saveAndRender();
+    async function checkUserRole() {
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) {
+            showScreen('authScreen');
+            return;
+        }
+        currentUser = user;
+
+        const { data, error } = await db.from('profiles').select('role').eq('id', user.id).single();
+        
+        if (data && (data.role === 'moderador' || data.role === 'admin')) {
+            showScreen('mainApp');
+            loadRecords();
+        } else {
+            showScreen('pendingScreen');
         }
     }
 
-    function renderTable() {
+    function showScreen(screenId) {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('pendingScreen').classList.add('hidden');
+        document.getElementById('mainApp').classList.add('hidden');
+        document.getElementById(screenId).classList.remove('hidden');
+    }
+
+    async function logout() {
+        await db.auth.signOut();
+        showScreen('authScreen');
+    }
+
+    async function loadRecords() {
+        const { data, error } = await db.from('sanciones').select('*').order('id', { ascending: false });
+        if (error) return console.error(error);
+
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-
-        records.forEach((r, index) => {
-            const badgeClass = r.type === 'Advertencia' ? 'badge-adv' : 'badge-san';
-            const row = `
+        data.forEach(r => {
+            const badgeClass = r.tipo === 'Advertencia' ? 'badge-adv' : 'badge-san';
+            tbody.innerHTML += `
                 <tr>
-                    <td><strong>${r.id}</strong></td>
-                    <td>${r.date}</td>
-                    <td>${r.user}</td>
-                    <td><span class="badge ${badgeClass}">${r.type}</span></td>
-                    <td>${r.reason}</td>
-                    <td>${r.duration}</td>
-                    <td>${r.mod}</td>
-                    <td class="actions-cell">
-                        <button class="btn-del" onclick="deleteRecord(${index})">✕</button>
-                    </td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
+                    <td><strong>${r.codigo}</strong></td>
+                    <td>${new Date(r.fecha).toLocaleDateString()}</td>
+                    <td>${r.usuario}</td>
+                    <td><span class="badge ${badgeClass}">${r.tipo}</span></td>
+                    <td>${r.motivo}</td>
+                    <td>${r.duracion}</td>
+                    <td>${r.moderador}</td>
+                </tr>`;
         });
     }
 
-    function exportToCSV() {
-        if(records.length === 0) return alert('No hay datos para exportar.');
+    document.getElementById('sanctionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tipo = document.getElementById('type').value;
         
-        let csv = 'Codigo,Fecha,Usuario,Tipo,Plataforma,Motivo,Sancion,Evidencia,Moderador\n';
-        records.forEach(r => {
-            csv += `"${r.id}","${r.date}","${r.user}","${r.type}","${r.platform}","${r.reason}","${r.duration}","${r.evidence}","${r.mod}"\n`;
-        });
+        const { count } = await db.from('sanciones').select('*', { count: 'exact', head: true }).eq('tipo', tipo);
+        const prefix = tipo === 'Advertencia' ? 'ADV' : 'SN';
+        const codigo = `${prefix}-${String((count || 0) + 1).padStart(3, '0')}`;
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `Historial_Sanciones_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+        const payload = {
+            codigo,
+            usuario: document.getElementById('username').value,
+            tipo: tipo,
+            plataforma: document.getElementById('platform').value,
+            motivo: document.getElementById('reason').value,
+            duracion: document.getElementById('duration').value,
+            evidencia: document.getElementById('evidence').value,
+            moderador: currentUser.email.split('@')[0]
+        };
 
-    // Carga inicial
-    renderTable();
+        const { error } = await db.from('sanciones').insert([payload]);
+        if (error) alert("Error al guardar: " + error.message);
+        else {
+            e.target.reset();
+            loadRecords();
+        }
+    });
+
+    checkUserRole();
 </script>
-
 </body>
 </html>
