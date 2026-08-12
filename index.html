@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-dark: #1e1f22;
-            --bg-card: #2b2d31;
+            --bg-card: rgba(43, 45, 49, 0.95);
             --bg-input: #313338;
             --accent: #5865f2;
             --accent-hover: #4752c4;
@@ -21,19 +21,32 @@
             --success-hover: #1d8a4b;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #1e1f22;
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 20px; 
+        }
+
         .hidden { display: none !important; }
-        .auth-container { max-width: 400px; margin: 80px auto; }
+        .auth-container { max-width: 400px; margin: 80px auto; text-align: center; }
         .container { max-width: 1250px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
-        .card { background: var(--bg-card); border-radius: 8px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .card { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
         h2 { margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        
+        .channel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .channel-brand { display: flex; align-items: center; gap: 12px; }
+        .channel-title { font-size: 1.2em; font-weight: bold; }
+
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9em; font-weight: 600; }
-        input, select { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main); box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        input, select { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--text-main); box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         button:hover { background: var(--accent-hover); }
         button.btn-sec { background: transparent; border: 1px solid var(--border); }
-        .btn-logout { background: var(--danger); width: auto; float: right; }
+        .btn-logout { background: var(--danger); width: auto; margin-top: 0; }
+        .btn-nick { background: var(--accent); width: auto; padding: 8px 12px; margin-top: 0; font-size: 0.85em; }
         
         .header-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
         .search-box { width: 250px; }
@@ -42,15 +55,16 @@
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.85em; }
-        th { background: #2b2d31; color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; }
+        th { background: rgba(43, 45, 49, 0.8); color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; display: inline-block; }
         .badge-active { background: rgba(218, 55, 60, 0.2); color: var(--danger); border: 1px solid var(--danger); }
         .badge-expired { background: rgba(148, 155, 164, 0.2); color: var(--text-muted); border: 1px solid var(--border); }
         .badge-perm { background: rgba(88, 101, 242, 0.2); color: var(--accent); border: 1px solid var(--accent); }
-        .notice { text-align: center; padding: 20px; background: #313338; border-radius: 8px; }
+        .notice { text-align: center; padding: 20px; background: var(--bg-card); border-radius: 8px; }
         a.link-evidence { color: var(--accent); text-decoration: none; font-weight: bold; }
         a.link-evidence:hover { text-decoration: underline; }
         .time-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .user-controls { display: flex; gap: 8px; align-items: center; }
     </style>
 </head>
 <body>
@@ -81,8 +95,17 @@
 
     <!-- PANEL PRINCIPAL -->
     <div id="mainApp" class="hidden">
-        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
-        <div style="clear: both; margin-bottom: 15px;"></div>
+        <div class="channel-header">
+            <div class="channel-brand">
+                <span class="channel-title">🛡️ Panel de Moderación</span>
+            </div>
+            <div class="user-controls">
+                <input type="text" id="customNickInput" placeholder="Tu Nickname" style="width: 140px; padding: 8px;">
+                <button class="btn-nick" onclick="updateNickname()">Guardar Nick</button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
         <div class="container">
             <div class="card">
                 <h2>🛡️ Registrar Sanción</h2>
@@ -167,6 +190,7 @@
 
     let isLogin = true;
     let currentUser = null;
+    let currentDisplayName = "";
     let allRecords = [];
 
     function toggleAuthMode() {
@@ -212,13 +236,31 @@
         }
         currentUser = user;
 
-        const { data, error } = await db.from('profiles').select('role').eq('id', user.id).single();
+        const { data, error } = await db.from('profiles').select('role, display_name').eq('id', user.id).single();
         
         if (data && (data.role === 'moderador' || data.role === 'admin')) {
+            currentDisplayName = data.display_name || user.email.split('@')[0];
+            document.getElementById('customNickInput').value = currentDisplayName;
             showScreen('mainApp');
             loadRecords();
         } else {
             showScreen('pendingScreen');
+        }
+    }
+
+    async function updateNickname() {
+        const newNick = document.getElementById('customNickInput').value.trim();
+        if (!newNick) return alert("Escribe un apodo válido.");
+
+        const { error } = await db.from('profiles')
+            .update({ display_name: newNick })
+            .eq('id', currentUser.id);
+
+        if (error) {
+            alert("Error al actualizar Nick: " + error.message);
+        } else {
+            currentDisplayName = newNick;
+            alert("¡Nick actualizado correctamente! Las nuevas sanciones saldrán a tu nombre.");
         }
     }
 
@@ -352,7 +394,7 @@
             duracion: duracionTexto,
             expira_at: expiraAt,
             evidencia: document.getElementById('evidence').value,
-            moderador: currentUser.email.split('@')[0]
+            moderador: currentDisplayName
         };
 
         const { error } = await db.from('sanciones').insert([payload]);
