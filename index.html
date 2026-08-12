@@ -11,11 +11,14 @@
             --bg-card: #2b2d31;
             --bg-input: #313338;
             --accent: #5865f2;
+            --accent-hover: #4752c4;
             --text-main: #f2f3f5;
             --text-muted: #949ba4;
             --border: #3f4147;
             --danger: #da373c;
             --warning: #f0b232;
+            --success: #23a55a;
+            --success-hover: #1d8a4b;
         }
 
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; }
@@ -28,8 +31,15 @@
         label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9em; font-weight: 600; }
         input, select { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main); box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        button:hover { background: var(--accent-hover); }
         button.btn-sec { background: transparent; border: 1px solid var(--border); }
         .btn-logout { background: var(--danger); width: auto; float: right; }
+        
+        .header-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .search-box { width: 250px; }
+        .btn-export { background: var(--success); width: auto; padding: 10px 15px; margin-top: 0; }
+        .btn-export:hover { background: var(--success-hover); }
+
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9em; }
         th { background: #2b2d31; color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; }
@@ -37,6 +47,8 @@
         .badge-adv { background: rgba(240, 178, 50, 0.2); color: var(--warning); }
         .badge-san { background: rgba(218, 55, 60, 0.2); color: var(--danger); }
         .notice { text-align: center; padding: 20px; background: #313338; border-radius: 8px; }
+        a.link-evidence { color: var(--accent); text-decoration: none; font-weight: bold; }
+        a.link-evidence:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -73,7 +85,7 @@
             <div class="card">
                 <h2>🛡️ Registrar Sanción</h2>
                 <form id="sanctionForm">
-                    <div class="form-group"><label>Usuario / Nickname</label><input type="text" id="username" required></div>
+                    <div class="form-group"><label>Usuario / Nickname</label><input type="text" id="username" placeholder="Ej: User#0000" required></div>
                     <div class="form-group">
                         <label>Tipo</label>
                         <select id="type"><option value="Advertencia">Advertencia</option><option value="Sanción">Sanción</option></select>
@@ -109,16 +121,22 @@
                             <option value="Ban permanente">Ban permanente</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Evidencia (URL)</label><input type="url" id="evidence"></div>
+                    <div class="form-group"><label>Evidencia (URL)</label><input type="url" id="evidence" placeholder="https://imgur.com/..."></div>
                     <button type="submit">Guardar Registro</button>
                 </form>
             </div>
 
             <div class="card">
-                <h2>📋 Historial General (Sincronizado)</h2>
+                <div class="header-actions">
+                    <h2>📋 Historial General</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar usuario..." onkeyup="filterRecords()">
+                        <button class="btn-export" onclick="exportToCSV()">📥 Exportar Excel</button>
+                    </div>
+                </div>
                 <table>
                     <thead>
-                        <tr><th>Código</th><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Motivo</th><th>Sanción</th><th>Mod</th></tr>
+                        <tr><th>Código</th><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Motivo</th><th>Sanción</th><th>Mod</th><th>Link</th></tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
@@ -128,11 +146,12 @@
 
 <script>
     const SUPABASE_URL = "https://jaemlgjyorsoojwmpoxm.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_tzjGJZ5c_jiGTkzy0IUf0w_umCH8Uaj";
+    const SUPABASE_KEY = "sb_publishable_tzjG375c_jiGTkzy0TUF0w_umCH8UAj";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let isLogin = true;
     let currentUser = null;
+    let allRecords = [];
 
     function toggleAuthMode() {
         isLogin = !isLogin;
@@ -193,10 +212,16 @@
         const { data, error } = await db.from('sanciones').select('*').order('id', { ascending: false });
         if (error) return console.error(error);
 
+        allRecords = data;
+        renderTable(allRecords);
+    }
+
+    function renderTable(records) {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-        data.forEach(r => {
+        records.forEach(r => {
             const badgeClass = r.tipo === 'Advertencia' ? 'badge-adv' : 'badge-san';
+            const evidenceLink = r.evidencia ? `<a class="link-evidence" href="${r.evidencia}" target="_blank">Ver</a>` : '-';
             tbody.innerHTML += `
                 <tr>
                     <td><strong>${r.codigo}</strong></td>
@@ -206,8 +231,37 @@
                     <td>${r.motivo}</td>
                     <td>${r.duracion}</td>
                     <td>${r.moderador}</td>
+                    <td>${evidenceLink}</td>
                 </tr>`;
         });
+    }
+
+    function filterRecords() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allRecords.filter(r => 
+            r.usuario.toLowerCase().includes(query) ||
+            r.moderador.toLowerCase().includes(query) ||
+            r.motivo.toLowerCase().includes(query) ||
+            r.codigo.toLowerCase().includes(query)
+        );
+        renderTable(filtered);
+    }
+
+    function exportToCSV() {
+        if (allRecords.length === 0) return alert('No hay datos para exportar.');
+        
+        let csv = 'Codigo,Fecha,Usuario,Tipo,Plataforma,Motivo,Sancion,Evidencia,Moderador\n';
+        allRecords.forEach(r => {
+            csv += `"${r.codigo}","${new Date(r.fecha).toLocaleString()}","${r.usuario}","${r.tipo}","${r.plataforma}","${r.motivo}","${r.duracion}","${r.evidencia || ''}","${r.moderador}"\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `Historial_Sanciones_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     document.getElementById('sanctionForm').addEventListener('submit', async (e) => {
