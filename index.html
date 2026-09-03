@@ -32,13 +32,18 @@
 
         .hidden { display: none !important; }
         .auth-container { max-width: 400px; margin: 80px auto; text-align: center; }
-        .container { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+        .container { max-width: 1350px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
         .card { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
         h2 { margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
         
         .channel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .channel-brand { display: flex; align-items: center; gap: 12px; }
         .channel-title { font-size: 1.2em; font-weight: bold; }
+        
+        /* Insignia visual del rango */
+        .badge-role { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; border: 1px solid var(--border); }
+        .badge-role.admin { background: rgba(240, 178, 50, 0.15); color: var(--warning); border-color: var(--warning); }
+        .badge-role.moderador { background: rgba(88, 101, 242, 0.15); color: var(--accent); border-color: var(--accent); }
 
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9em; font-weight: 600; }
@@ -48,7 +53,13 @@
         button.btn-sec { background: transparent; border: 1px solid var(--border); }
         .btn-logout { background: var(--danger); width: auto; margin-top: 0; }
         .btn-nick { background: var(--accent); width: auto; padding: 8px 12px; margin-top: 0; font-size: 0.85em; }
-        .btn-delete { background: var(--danger); width: auto; padding: 4px 8px; margin: 0; font-size: 0.8em; }
+        
+        /* Botones de acción en tabla (Admin) */
+        .action-btns { display: flex; gap: 5px; }
+        .btn-action { width: auto; padding: 5px 8px; margin: 0; font-size: 0.8em; border-radius: 4px; }
+        .btn-edit { background: var(--warning); color: #1e1f22; }
+        .btn-edit:hover { background: #d99f2b; }
+        .btn-delete { background: var(--danger); }
         .btn-delete:hover { background: var(--danger-hover); }
         
         .header-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
@@ -101,6 +112,7 @@
         <div class="channel-header">
             <div class="channel-brand">
                 <span class="channel-title">🛡️ Panel de Moderación</span>
+                <div id="roleBadgeContainer"></div>
             </div>
             <div class="user-controls">
                 <input type="text" id="customNickInput" placeholder="Tu Nickname" style="width: 140px; padding: 8px;">
@@ -111,8 +123,9 @@
 
         <div class="container">
             <div class="card">
-                <h2>🛡️ Registrar Sanción</h2>
+                <h2 id="formTitle">🛡️ Registrar Sanción</h2>
                 <form id="sanctionForm">
+                    <input type="hidden" id="editRecordId">
                     <div class="form-group">
                         <label>Usuario / Nickname</label>
                         <input type="text" id="username" placeholder="Ej: User#0000" required>
@@ -155,7 +168,8 @@
                         <label>Evidencia (URL)</label>
                         <input type="url" id="evidence" placeholder="https://imgur.com/...">
                     </div>
-                    <button type="submit">Guardar Registro</button>
+                    <button type="submit" id="btnSubmitForm">Guardar Registro</button>
+                    <button type="button" id="btnCancelEdit" class="btn-sec hidden" onclick="resetFormMode()" style="margin-top: 5px;">Cancelar Edición</button>
                 </form>
             </div>
 
@@ -178,7 +192,7 @@
                             <th>Estado</th>
                             <th>Mod</th>
                             <th>Link</th>
-                            <th>Acciones</th>
+                            <th id="thActions" class="hidden">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
@@ -189,12 +203,13 @@
 
 <script>
     const SUPABASE_URL = "https://jaemlgjyorsoojwmpoxm.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_tzjGJZ5c_jiGTkzy0IUf0w_umCH8Uaj";
+    const SUPABASE_KEY = "sb_publishable_tzjG375c_jiGTkzy0TUF0w_umCH8UAj";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let isLogin = true;
     let currentUser = null;
     let currentDisplayName = "";
+    let currentUserRole = "";
     let allRecords = [];
 
     function toggleAuthMode() {
@@ -226,7 +241,7 @@
             const { data, error } = await db.auth.signUp({ email, password });
             if (error) alert("Error al registrarse: " + error.message);
             else {
-                alert("Cuenta creada con éxito. Un admin deberá aprobar tu cuenta.");
+                alert("Cuenta creada con éxito. Un administrador debe aprobar tu cuenta.");
                 toggleAuthMode();
             }
         }
@@ -243,8 +258,20 @@
         const { data, error } = await db.from('profiles').select('role, display_name').eq('id', user.id).single();
         
         if (data && (data.role === 'moderador' || data.role === 'admin')) {
+            currentUserRole = data.role;
             currentDisplayName = data.display_name || user.email.split('@')[0];
             document.getElementById('customNickInput').value = currentDisplayName;
+            
+            // Mostrar icono/insignia de rango visible
+            const badgeContainer = document.getElementById('roleBadgeContainer');
+            if (currentUserRole === 'admin') {
+                badgeContainer.innerHTML = `<span class="badge-role admin">👑 Rango: Administrador</span>`;
+                document.getElementById('thActions').classList.remove('hidden');
+            } else {
+                badgeContainer.innerHTML = `<span class="badge-role moderador">🛡️ Rango: Moderador</span>`;
+                document.getElementById('thActions').classList.add('hidden');
+            }
+
             showScreen('mainApp');
             loadRecords();
         } else {
@@ -314,9 +341,21 @@
     function renderTable(records) {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
+        
         records.forEach(r => {
             const evidenceLink = r.evidencia ? `<a class="link-evidence" href="${r.evidencia}" target="_blank">Ver</a>` : '-';
             const statusBadge = getStatusBadge(r.expira_at, r.duracion);
+
+            let actionTd = '';
+            if (currentUserRole === 'admin') {
+                actionTd = `
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn-action btn-edit" onclick="prepareEdit(${r.id})" title="Modificar">✏️</button>
+                            <button class="btn-action btn-delete" onclick="deleteRecord(${r.id}, '${r.codigo}')" title="Eliminar">🗑️</button>
+                        </div>
+                    </td>`;
+            }
 
             tbody.innerHTML += `
                 <tr>
@@ -328,11 +367,35 @@
                     <td>${statusBadge}</td>
                     <td>${r.moderador}</td>
                     <td>${evidenceLink}</td>
-                    <td>
-                        <button class="btn-delete" onclick="deleteRecord(${r.id}, '${r.codigo}')">🗑️</button>
-                    </td>
+                    ${actionTd}
                 </tr>`;
         });
+    }
+
+    function prepareEdit(id) {
+        const record = allRecords.find(r => r.id === id);
+        if (!record) return;
+
+        document.getElementById('editRecordId').value = record.id;
+        document.getElementById('username').value = record.usuario;
+        document.getElementById('type').value = record.tipo;
+        document.getElementById('platform').value = record.plataforma;
+        document.getElementById('reason').value = record.motivo;
+        document.getElementById('evidence').value = record.evidencia || '';
+
+        document.getElementById('formTitle').innerText = `✏️ Modificar ${record.codigo}`;
+        document.getElementById('btnSubmitForm').innerText = 'Actualizar Registro';
+        document.getElementById('btnCancelEdit').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetFormMode() {
+        document.getElementById('sanctionForm').reset();
+        document.getElementById('editRecordId').value = '';
+        document.getElementById('formTitle').innerText = '🛡️ Registrar Sanción';
+        document.getElementById('btnSubmitForm').innerText = 'Guardar Registro';
+        document.getElementById('btnCancelEdit').classList.add('hidden');
+        toggleDurationInput();
     }
 
     async function deleteRecord(id, codigo) {
@@ -362,7 +425,6 @@
     function exportToCSV() {
         if (allRecords.length === 0) return alert('No hay datos para exportar.');
         
-        // Incluir instruccion sep=; para forzar a Excel a separar en columnas
         let csv = 'sep=;\n';
         csv += 'Codigo;Fecha;Usuario;Tipo;Plataforma;Motivo;Sancion;Evidencia;Moderador;Expiracion\n';
         
@@ -384,6 +446,7 @@
 
     document.getElementById('sanctionForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const editId = document.getElementById('editRecordId').value;
         const tipo = document.getElementById('type').value;
         const unit = document.getElementById('durationUnit').value;
         const val = parseInt(document.getElementById('durationValue').value) || 0;
@@ -407,28 +470,50 @@
             expiraAt = new Date(ahora.getTime() + val * 60 * 1000).toISOString();
         }
 
-        const { count } = await db.from('sanciones').select('*', { count: 'exact', head: true }).eq('tipo', tipo);
-        const prefix = tipo === 'Advertencia' ? 'ADV' : 'SN';
-        const codigo = `${prefix}-${String((count || 0) + 1).padStart(3, '0')}`;
+        if (editId) {
+            // MODO EDICIÓN (Solo Admin)
+            const payload = {
+                usuario: document.getElementById('username').value,
+                tipo: tipo,
+                plataforma: document.getElementById('platform').value,
+                motivo: document.getElementById('reason').value,
+                duracion: duracionTexto,
+                expira_at: expiraAt,
+                evidencia: document.getElementById('evidence').value
+            };
 
-        const payload = {
-            codigo,
-            usuario: document.getElementById('username').value,
-            tipo: tipo,
-            plataforma: document.getElementById('platform').value,
-            motivo: document.getElementById('reason').value,
-            duracion: duracionTexto,
-            expira_at: expiraAt,
-            evidencia: document.getElementById('evidence').value,
-            moderador: currentDisplayName
-        };
+            const { error } = await db.from('sanciones').update(payload).eq('id', editId);
+            if (error) alert("Error al actualizar: " + error.message);
+            else {
+                alert("Registro actualizado correctamente.");
+                resetFormMode();
+                loadRecords();
+            }
+        } else {
+            // MODO CREACIÓN (Admin o Moderador)
+            const { count } = await db.from('sanciones').select('*', { count: 'exact', head: true }).eq('tipo', tipo);
+            const prefix = tipo === 'Advertencia' ? 'ADV' : 'SN';
+            const codigo = `${prefix}-${String((count || 0) + 1).padStart(3, '0')}`;
 
-        const { error } = await db.from('sanciones').insert([payload]);
-        if (error) alert("Error al guardar: " + error.message);
-        else {
-            e.target.reset();
-            toggleDurationInput();
-            loadRecords();
+            const payload = {
+                codigo,
+                usuario: document.getElementById('username').value,
+                tipo: tipo,
+                plataforma: document.getElementById('platform').value,
+                motivo: document.getElementById('reason').value,
+                duracion: duracionTexto,
+                expira_at: expiraAt,
+                evidencia: document.getElementById('evidence').value,
+                moderador: currentDisplayName
+            };
+
+            const { error } = await db.from('sanciones').insert([payload]);
+            if (error) alert("Error al guardar: " + error.message);
+            else {
+                e.target.reset();
+                toggleDurationInput();
+                loadRecords();
+            }
         }
     });
 
