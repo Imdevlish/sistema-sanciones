@@ -201,7 +201,7 @@
 
 <script>
     const SUPABASE_URL = "https://jaemlgjyorsoojwmpoxm.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_tzjGJZ5c_jiGTkzy0IUf0w_umCH8UAj";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZW1sZ2p5b3Jzb29qd21wb3htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MDE3ODEsImV4cCI6MjEwMjA3Nzc4MX0.k6rnvZ8kawVDLlkNuRaJBcd_HAnv_yOoFOES-BeO5_4";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let isLogin = true;
@@ -450,7 +450,7 @@
         
         let duracionTexto = '';
         let expiraAt = null;
-        constahora = new Date();
+        const ahora = new Date();
 
         if (unit === 'permanente') {
             duracionTexto = 'Ban Permanente';
